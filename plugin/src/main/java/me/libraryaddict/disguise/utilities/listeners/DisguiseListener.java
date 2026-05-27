@@ -60,7 +60,8 @@ import org.bukkit.event.world.WorldLoadEvent;
 import org.bukkit.event.world.WorldUnloadEvent;
 import org.bukkit.metadata.FixedMetadataValue;
 import org.bukkit.plugin.java.JavaPlugin;
-import org.bukkit.scheduler.BukkitRunnable;
+import com.tcoded.folialib.wrapper.task.WrappedTask;
+import me.libraryaddict.disguise.utilities.scheduler.Schedulers;
 
 import java.util.HashMap;
 import java.util.Optional;
@@ -69,7 +70,7 @@ import java.util.Set;
 
 public class DisguiseListener implements Listener {
     private final HashMap<String, LibsEntityInteract> interactions = new HashMap<>();
-    private final HashMap<String, BukkitRunnable> disguiseRunnable = new HashMap<>();
+    private final HashMap<String, WrappedTask> disguiseRunnable = new HashMap<>();
     private final LibsDisguises plugin;
     @Getter
     @Setter
@@ -131,8 +132,8 @@ public class DisguiseListener implements Listener {
     }
 
     public void cleanup() {
-        for (BukkitRunnable r : disguiseRunnable.values()) {
-            r.cancel();
+        for (WrappedTask r : disguiseRunnable.values()) {
+            Schedulers.cancel(r);
         }
 
         interactions.clear();
@@ -418,17 +419,13 @@ public class DisguiseListener implements Listener {
             String requiredPacketEvents = PacketEventsUpdater.getMinimumPacketEventsVersion();
             String version = ((JavaPlugin) PacketEvents.getAPI().getPlugin()).getDescription().getVersion() +
                 ("1592".equals(LibsPremium.getUserID()) ? "-pirated" : "");
-            new BukkitRunnable() {
-                @Override
-                public void run() {
-                    if (!p.isOnline()) {
-                        cancel();
-                        return;
-                    }
-
-                    DisguiseUtilities.sendPacketEventsUpdateMessage(p, version, requiredPacketEvents);
+            Schedulers.runAtEntityLater(p, () -> {
+                if (!p.isOnline()) {
+                    return;
                 }
-            }.runTaskLater(LibsDisguises.getInstance(), 20);
+
+                DisguiseUtilities.sendPacketEventsUpdateMessage(p, version, requiredPacketEvents);
+            }, 20);
         }
 
         if (DisguiseConfig.isSavePlayerDisguises()) {
@@ -468,53 +465,47 @@ public class DisguiseListener implements Listener {
             }
         }
 
-        new BukkitRunnable() {
-            @Override
-            public void run() {
-                if (!p.isOnline()) {
-                    return;
-                }
+        Schedulers.runAtEntityLater(p, () -> {
+            if (!p.isOnline()) {
+                return;
+            }
 
-                DisguiseUtilities.registerNoName(p.getScoreboard());
+            DisguiseUtilities.registerNoName(p.getScoreboard());
 
-                if (p.getScoreboard() != Bukkit.getScoreboardManager().getMainScoreboard()) {
-                    DisguiseUtilities.registerAllExtendedNames(p.getScoreboard());
-                    DisguiseUtilities.registerColors(p.getScoreboard());
-                }
+            if (p.getScoreboard() != Bukkit.getScoreboardManager().getMainScoreboard()) {
+                DisguiseUtilities.registerAllExtendedNames(p.getScoreboard());
+                DisguiseUtilities.registerColors(p.getScoreboard());
+            }
 
-                if (!p.hasMetadata("forge_mods")) {
-                    Optional<ModdedEntity> required =
-                        ModdedManager.getEntities().values().stream().filter(c -> c.getMod() != null && c.getRequired() != null).findAny();
+            if (!p.hasMetadata("forge_mods")) {
+                Optional<ModdedEntity> required =
+                    ModdedManager.getEntities().values().stream().filter(c -> c.getMod() != null && c.getRequired() != null).findAny();
 
-                    required.ifPresent(customEntity -> p.kickPlayer(customEntity.getRequired()));
-                }
+                required.ifPresent(customEntity -> p.kickPlayer(customEntity.getRequired()));
+            }
 
-                if (DisguiseConfig.isSaveGameProfiles() && DisguiseConfig.isUpdateGameProfiles() &&
-                    DisguiseUtilities.hasUserProfile(p.getName())) {
-                    UserProfile profile = ReflectionManager.getUserProfile(p);
+            if (DisguiseConfig.isSaveGameProfiles() && DisguiseConfig.isUpdateGameProfiles() &&
+                DisguiseUtilities.hasUserProfile(p.getName())) {
+                UserProfile profile = ReflectionManager.getUserProfile(p);
 
-                    if (!profile.getTextureProperties().isEmpty()) {
-                        DisguiseUtilities.addUserProfile(p.getName(), profile);
-                    }
+                if (!profile.getTextureProperties().isEmpty()) {
+                    DisguiseUtilities.addUserProfile(p.getName(), profile);
                 }
             }
-        }.runTaskLater(LibsDisguises.getInstance(), 20);
+        }, 20);
 
-        new BukkitRunnable() {
-            @Override
-            public void run() {
-                if (!p.isOnline()) {
-                    return;
-                }
-
-                if (!p.hasMetadata("forge_mods")) {
-                    Optional<ModdedEntity> required =
-                        ModdedManager.getEntities().values().stream().filter(c -> c.getMod() != null && c.getRequired() != null).findAny();
-
-                    required.ifPresent(customEntity -> p.kickPlayer(customEntity.getRequired()));
-                }
+        Schedulers.runAtEntityLater(p, () -> {
+            if (!p.isOnline()) {
+                return;
             }
-        }.runTaskLater(LibsDisguises.getInstance(), 60);
+
+            if (!p.hasMetadata("forge_mods")) {
+                Optional<ModdedEntity> required =
+                    ModdedManager.getEntities().values().stream().filter(c -> c.getMod() != null && c.getRequired() != null).findAny();
+
+                required.ifPresent(customEntity -> p.kickPlayer(customEntity.getRequired()));
+            }
+        }, 60);
     }
 
     /**
@@ -743,16 +734,13 @@ public class DisguiseListener implements Listener {
 
                 PacketEvents.getAPI().getPlayerManager().sendPacket(player, packet);
 
-                new BukkitRunnable() {
-                    @Override
-                    public void run() {
-                        if (event.isCancelled() || !disguise.isDisguiseInUse()) {
-                            return;
-                        }
-
-                        DisguiseUtilities.sendSelfDisguise(player, (TargetedDisguise) disguise);
+                Schedulers.runAtEntityLater(player, () -> {
+                    if (event.isCancelled() || !disguise.isDisguiseInUse()) {
+                        return;
                     }
-                }.runTaskLater(LibsDisguises.getInstance(), 4);
+
+                    DisguiseUtilities.sendSelfDisguise(player, (TargetedDisguise) disguise);
+                }, 4);
             }
         } else if (from.getWorld() != to.getWorld()) {
             // Stupid hack to fix worldswitch invisibility bug & paper packet bug
@@ -764,12 +752,7 @@ public class DisguiseListener implements Listener {
                 if (disguise != null && disguise.isSelfDisguiseVisible()) {
                     disguise.setViewSelfDisguise(false);
 
-                    new BukkitRunnable() {
-                        @Override
-                        public void run() {
-                            disguise.setViewSelfDisguise(true);
-                        }
-                    }.runTaskLater(LibsDisguises.getInstance(), 20);
+                    Schedulers.runAtEntityLater(event.getPlayer(), () -> disguise.setViewSelfDisguise(true), 20);
                 }
             }
         }
@@ -798,14 +781,11 @@ public class DisguiseListener implements Listener {
             final Disguise disguise = DisguiseAPI.getDisguise((Player) event.getExited(), event.getExited());
 
             if (disguise != null) {
-                new BukkitRunnable() {
-                    @Override
-                    public void run() {
-                        DisguiseUtilities.setupFakeDisguise(disguise);
+                Schedulers.runAtEntityLater((Player) event.getExited(), () -> {
+                    DisguiseUtilities.setupFakeDisguise(disguise);
 
-                        ((Player) disguise.getEntity()).updateInventory();
-                    }
-                }.runTaskLater(LibsDisguises.getInstance(), 1);
+                    ((Player) disguise.getEntity()).updateInventory();
+                }, 1);
             }
         }
     }
@@ -836,12 +816,7 @@ public class DisguiseListener implements Listener {
                 if (disguise != null && disguise.isSelfDisguiseVisible()) {
                     disguise.setViewSelfDisguise(false);
 
-                    new BukkitRunnable() {
-                        @Override
-                        public void run() {
-                            disguise.setViewSelfDisguise(true);
-                        }
-                    }.runTaskLater(LibsDisguises.getInstance(), 20);
+                    Schedulers.runAtEntityLater(event.getPlayer(), () -> disguise.setViewSelfDisguise(true), 20);
                 }
             }
         }
@@ -849,20 +824,15 @@ public class DisguiseListener implements Listener {
 
     public void addInteraction(String playerName, LibsEntityInteract interaction, int secondsExpire) {
         if (disguiseRunnable.containsKey(playerName)) {
-            disguiseRunnable.get(playerName).cancel();
+            Schedulers.cancel(disguiseRunnable.get(playerName));
         }
 
         interactions.put(playerName, interaction);
 
-        BukkitRunnable runnable = new BukkitRunnable() {
-            @Override
-            public void run() {
-                interactions.remove(playerName);
-                disguiseRunnable.remove(playerName);
-            }
-        };
-
-        runnable.runTaskLater(LibsDisguises.getInstance(), secondsExpire * 20L);
+        WrappedTask runnable = Schedulers.runSyncLater(() -> {
+            interactions.remove(playerName);
+            disguiseRunnable.remove(playerName);
+        }, secondsExpire * 20L);
 
         disguiseRunnable.put(playerName, runnable);
     }
