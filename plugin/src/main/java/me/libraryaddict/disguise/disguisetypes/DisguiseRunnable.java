@@ -25,7 +25,7 @@ import org.bukkit.entity.Entity;
 import org.bukkit.entity.EntityType;
 import org.bukkit.entity.Player;
 import org.bukkit.entity.Projectile;
-import org.bukkit.scheduler.BukkitRunnable;
+import me.libraryaddict.disguise.utilities.scheduler.Schedulers;
 import org.bukkit.util.Vector;
 
 import java.util.ArrayList;
@@ -400,31 +400,28 @@ public class DisguiseRunnable {
     }
 
     public static void startRunnable() {
-        new BukkitRunnable() {
-            @Override
-            public void run() {
-                synchronized (runnables) {
-                    Iterator<DisguiseRunnable> iterator = runnables.iterator();
+        Schedulers.runSyncTimer(() -> {
+            synchronized (runnables) {
+                Iterator<DisguiseRunnable> iterator = runnables.iterator();
 
-                    if (!iterator.hasNext()) {
-                        return;
+                if (!iterator.hasNext()) {
+                    return;
+                }
+
+                List<World> worlds = Bukkit.getWorlds();
+
+                while (iterator.hasNext()) {
+                    DisguiseRunnable runnable = iterator.next();
+
+                    if (!runnable.inUse) {
+                        iterator.remove();
+                        continue;
                     }
 
-                    List<World> worlds = Bukkit.getWorlds();
-
-                    while (iterator.hasNext()) {
-                        DisguiseRunnable runnable = iterator.next();
-
-                        if (!runnable.inUse) {
-                            iterator.remove();
-                            continue;
-                        }
-
-                        runnable.run(worlds);
-                    }
+                    runnable.run(worlds);
                 }
             }
-        }.runTaskTimer(LibsDisguises.getInstance(), 1, 1);
+        }, 1, 1);
     }
 }
 
