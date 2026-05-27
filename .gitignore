@@ -23,4 +23,5 @@ gradle-app.setting
 **/.idea
 *.iml
 *.ipr
-.kotlintarget/
+.kotlin
+target/
