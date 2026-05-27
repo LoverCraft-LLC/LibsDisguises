@@ -143,7 +143,7 @@ import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.plugin.SimplePluginManager;
 import org.bukkit.profile.PlayerProfile;
-import org.bukkit.scheduler.BukkitRunnable;
+import me.libraryaddict.disguise.utilities.scheduler.Schedulers;
 import org.bukkit.scoreboard.Scoreboard;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -1758,13 +1758,8 @@ public class ReflectionManager {
     }
 
     private static void setScore(Scoreboard scoreboard, String name, int score, boolean canScheduleTask) {
-        if (canScheduleTask && (!Bukkit.isPrimaryThread() || DisguiseUtilities.isRunningPaper())) {
-            new BukkitRunnable() {
-                @Override
-                public void run() {
-                    setScore(scoreboard, name, score, false);
-                }
-            }.runTask(LibsDisguises.getInstance());
+        if (canScheduleTask) {
+            Schedulers.runSync(() -> setScore(scoreboard, name, score, false));
             return;
         }
 
