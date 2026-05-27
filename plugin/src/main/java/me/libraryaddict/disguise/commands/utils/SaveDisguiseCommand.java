@@ -16,8 +16,8 @@ import org.bukkit.command.CommandExecutor;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Entity;
 import org.bukkit.entity.Player;
-import org.bukkit.scheduler.BukkitRunnable;
-import org.bukkit.scheduler.BukkitTask;
+import com.tcoded.folialib.wrapper.task.WrappedTask;
+import me.libraryaddict.disguise.utilities.scheduler.Schedulers;
 
 import java.util.Arrays;
 import java.util.concurrent.TimeUnit;
@@ -118,23 +118,23 @@ public class SaveDisguiseCommand implements CommandExecutor {
 
                 SkinUtils.grabSkin(sender, args[skinId], new SkinUtils.SkinCallback() {
                     private final long cancelAt = System.currentTimeMillis() + TimeUnit.MINUTES.toMillis(3);
+                    private WrappedTask runnable;
 
-                    private final BukkitTask runnable = new BukkitRunnable() {
-                        @Override
-                        public void run() {
+                    {
+                        runnable = Schedulers.runSyncTimer(() -> {
                             if (System.currentTimeMillis() > cancelAt) {
-                                cancel();
+                                Schedulers.cancel(runnable);
                                 LibsMsg.SKIN_API_TIMEOUT.send(sender);
                                 return;
                             }
 
                             LibsMsg.PLEASE_WAIT.send(sender);
-                        }
-                    }.runTaskTimer(LibsDisguises.getInstance(), 100, 100);
+                        }, 100, 100);
+                    }
 
                     @Override
                     public void onError(LibsMsg msg, Object... args) {
-                        runnable.cancel();
+                        Schedulers.cancel(runnable);
 
                         msg.send(sender, args);
                     }
@@ -146,7 +146,7 @@ public class SaveDisguiseCommand implements CommandExecutor {
 
                     @Override
                     public void onSuccess(UserProfile profile) {
-                        runnable.cancel();
+                        Schedulers.cancel(runnable);
                         DisguiseUtilities.doSkinUUIDWarning(sender);
 
                         finalArgs[skinId] = DisguiseUtilities.getGson().toJson(profile);
