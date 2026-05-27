@@ -145,7 +145,8 @@ import org.bukkit.metadata.FixedMetadataValue;
 import org.bukkit.persistence.PersistentDataContainer;
 import org.bukkit.persistence.PersistentDataType;
 import org.bukkit.potion.PotionEffect;
-import org.bukkit.scheduler.BukkitRunnable;
+import com.tcoded.folialib.wrapper.task.WrappedTask;
+import me.libraryaddict.disguise.utilities.scheduler.Schedulers;
 import org.bukkit.scoreboard.Scoreboard;
 import org.bukkit.scoreboard.Team;
 import org.bukkit.scoreboard.Team.Option;
@@ -548,12 +549,7 @@ public class DisguiseUtilities {
 
         lastSavedPreferences = System.currentTimeMillis();
 
-        new BukkitRunnable() {
-            @Override
-            public void run() {
-                saveViewPreferances();
-            }
-        }.runTaskLater(LibsDisguises.getInstance(), 20 * TimeUnit.SECONDS.toMillis(120));
+        Schedulers.runAsyncLater(DisguiseUtilities::saveViewPreferances, 20 * TimeUnit.SECONDS.toMillis(120));
     }
 
     public static String getDisplayName(CommandSender commandSender) {
@@ -1378,35 +1374,30 @@ public class DisguiseUtilities {
     public static void addFutureDisguise(final int entityId, final TargetedDisguise disguise) {
         getFutureDisguises().computeIfAbsent(entityId, k -> ConcurrentHashMap.newKeySet(1)).add(disguise);
 
-        final BukkitRunnable runnable = new BukkitRunnable() {
-            @Override
-            public void run() {
-                Set<TargetedDisguise> disguises = getFutureDisguises().get(entityId);
+        Schedulers.runSyncLater(() -> {
+            Set<TargetedDisguise> disguises = getFutureDisguises().get(entityId);
 
-                if (disguises == null || !disguises.contains(disguise)) {
+            if (disguises == null || !disguises.contains(disguise)) {
+                return;
+            }
+
+            for (World world : Bukkit.getWorlds()) {
+                for (Entity entity : world.getEntities()) {
+                    if (entity.getEntityId() != entityId) {
+                        continue;
+                    }
+
+                    onFutureDisguise(entity);
                     return;
                 }
-
-                for (World world : Bukkit.getWorlds()) {
-                    for (Entity entity : world.getEntities()) {
-                        if (entity.getEntityId() != entityId) {
-                            continue;
-                        }
-
-                        onFutureDisguise(entity);
-                        return;
-                    }
-                }
-
-                disguises.remove(disguise);
-
-                if (disguises.isEmpty()) {
-                    getFutureDisguises().remove(entityId);
-                }
             }
-        };
 
-        runnable.runTaskLater(LibsDisguises.getInstance(), 20);
+            disguises.remove(disguise);
+
+            if (disguises.isEmpty()) {
+                getFutureDisguises().remove(entityId);
+            }
+        }, 20);
     }
 
     public static void loadSanitySkinCache() throws IOException {
@@ -1886,43 +1877,36 @@ public class DisguiseUtilities {
                 list.add(runnable);
             }
 
-            new BukkitRunnable() {
-                @Override
-                public void run() {
+            Schedulers.runAsync(() -> {
+                try {
+                    final UserProfile gameProfile = lookupUserProfile(origName);
 
-                    try {
-                        final UserProfile gameProfile = lookupUserProfile(origName);
+                    Schedulers.runSync(() -> {
+                        if (DisguiseConfig.isSaveGameProfiles()) {
+                            addUserProfile(playerName, gameProfile);
+                        }
 
-                        new BukkitRunnable() {
-                            @Override
-                            public void run() {
-                                if (DisguiseConfig.isSaveGameProfiles()) {
-                                    addUserProfile(playerName, gameProfile);
-                                }
-
-                                synchronized (runnables) {
-                                    if (runnables.containsKey(playerName)) {
-                                        for (Object obj : runnables.remove(playerName)) {
-                                            if (obj instanceof Runnable) {
-                                                ((Runnable) obj).run();
-                                            } else if (obj instanceof LibsProfileLookup) {
-                                                ((LibsProfileLookup) obj).onLookup(gameProfile);
-                                            }
-                                        }
+                        synchronized (runnables) {
+                            if (runnables.containsKey(playerName)) {
+                                for (Object obj : runnables.remove(playerName)) {
+                                    if (obj instanceof Runnable) {
+                                        ((Runnable) obj).run();
+                                    } else if (obj instanceof LibsProfileLookup) {
+                                        ((LibsProfileLookup) obj).onLookup(gameProfile);
                                     }
                                 }
                             }
-                        }.runTask(LibsDisguises.getInstance());
-                    } catch (Exception e) {
-                        synchronized (runnables) {
-                            runnables.remove(playerName);
                         }
-
-                        LibsDisguises.getInstance().getLogger()
-                            .severe("Error when fetching " + playerName + "'s uuid from mojang: " + e.getMessage());
+                    });
+                } catch (Exception e) {
+                    synchronized (runnables) {
+                        runnables.remove(playerName);
                     }
+
+                    LibsDisguises.getInstance().getLogger()
+                        .severe("Error when fetching " + playerName + "'s uuid from mojang: " + e.getMessage());
                 }
-            }.runTaskAsynchronously(LibsDisguises.getInstance());
+            });
         }
 
         return null;
@@ -2141,33 +2125,30 @@ public class DisguiseUtilities {
             }
 
             if (fetch) {
-                new BukkitRunnable() {
-                    @Override
-                    public void run() {
-                        try {
-                            String[] users = getBadUsers();
+                Schedulers.runAsync(() -> {
+                    try {
+                        String[] users = getBadUsers();
 
-                            if (users != null) {
-                                // Too many trimmed
-                                if (users.length < hard.users.length / 2) {
-                                    users = hard.users;
-                                }
-
-                                UsersData data = new UsersData();
-                                data.users = users;
-                                data.fetched = System.currentTimeMillis();
-
-                                DisguiseConfig.setHashedData(
-                                    Base64.getEncoder().encodeToString(getGson().toJson(data).getBytes(StandardCharsets.UTF_8)));
-                                DisguiseConfig.saveInternalConfig();
+                        if (users != null) {
+                            // Too many trimmed
+                            if (users.length < hard.users.length / 2) {
+                                users = hard.users;
                             }
 
-                            doCheck(users);
-                        } catch (Exception ignored) {
-                            doCheck(hard.users);
+                            UsersData data = new UsersData();
+                            data.users = users;
+                            data.fetched = System.currentTimeMillis();
+
+                            DisguiseConfig.setHashedData(
+                                Base64.getEncoder().encodeToString(getGson().toJson(data).getBytes(StandardCharsets.UTF_8)));
+                            DisguiseConfig.saveInternalConfig();
                         }
+
+                        doCheck(users);
+                    } catch (Exception ignored) {
+                        doCheck(hard.users);
                     }
-                }.runTaskAsynchronously(LibsDisguises.getInstance());
+                });
             }
         }
 
@@ -2283,12 +2264,8 @@ public class DisguiseUtilities {
                 WrapperPlayServerDestroyEntities destroyPacket = getDestroyPacket(DisguiseAPI.getSelfDisguiseId());
                 PacketEvents.getAPI().getPlayerManager().sendPacket(disguise.getEntity(), destroyPacket);
 
-                new BukkitRunnable() {
-                    @Override
-                    public void run() {
-                        sendSelfDisguise((Player) disguise.getEntity(), disguise);
-                    }
-                }.runTaskLater(LibsDisguises.getInstance(), 2);
+                Schedulers.runAtEntityLater(disguise.getEntity(),
+                    () -> sendSelfDisguise((Player) disguise.getEntity(), disguise), 2);
             } else {
                 final Object entityTracker = ReflectionManager.getEntityTracker(disguise.getEntity());
                 final Object entityTrackerEntry = ReflectionManager.getEntityTrackerEntry(disguise.getEntity(), entityTracker);
@@ -2313,12 +2290,8 @@ public class DisguiseUtilities {
 
                     PacketEvents.getAPI().getPlayerManager().sendPacket(pl, destroyPacket);
 
-                    new BukkitRunnable() {
-                        @Override
-                        public void run() {
-                            ReflectionManager.addEntityTracker(entityTracker, entityTrackerEntry, p);
-                        }
-                    }.runTaskLater(LibsDisguises.getInstance(), 2);
+                    Schedulers.runAtEntityLater(disguise.getEntity(),
+                        () -> ReflectionManager.addEntityTracker(entityTracker, entityTrackerEntry, p), 2);
                     break;
                 }
             }
@@ -2333,8 +2306,8 @@ public class DisguiseUtilities {
      * A convenience method for me to refresh trackers in other plugins
      */
     public static void refreshTrackers(Entity entity) {
-        if (!Bukkit.isPrimaryThread()) {
-            throw new IllegalStateException("Cannot modify disguises on an async thread");
+        if (!LibsDisguises.getFoliaLib().getScheduler().isOwnedByCurrentRegion(entity)) {
+            throw new IllegalStateException("Cannot modify disguises on a thread that does not own the entity's region");
         }
 
         if (entity.isValid()) {
@@ -2358,12 +2331,8 @@ public class DisguiseUtilities {
                         WrapperPlayServerDestroyEntities destroyPacket = getDestroyPacket(entity.getEntityId());
                         PacketEvents.getAPI().getPlayerManager().sendPacket(player, destroyPacket);
 
-                        new BukkitRunnable() {
-                            @Override
-                            public void run() {
-                                ReflectionManager.addEntityTracker(entityTracker, entityTrackerEntry, p);
-                            }
-                        }.runTaskLater(LibsDisguises.getInstance(), 2);
+                        Schedulers.runAtEntityLater(entity,
+                            () -> ReflectionManager.addEntityTracker(entityTracker, entityTrackerEntry, p), 2);
                     }
                 }
             } catch (Exception ex) {
@@ -2382,8 +2351,8 @@ public class DisguiseUtilities {
      * @return Number of players affected
      */
     public static int refreshTrackersWithCount(final TargetedDisguise disguise) {
-        if (!Bukkit.isPrimaryThread()) {
-            throw new IllegalStateException("Cannot modify disguises on an async thread");
+        if (!LibsDisguises.getFoliaLib().getScheduler().isOwnedByCurrentRegion(disguise.getEntity())) {
+            throw new IllegalStateException("Cannot modify disguises on a thread that does not own the entity's region");
         }
 
         if (!disguise.getEntity().isValid()) {
@@ -2401,12 +2370,8 @@ public class DisguiseUtilities {
 
                 removeSelfTracker((Player) disguise.getEntity());
 
-                new BukkitRunnable() {
-                    @Override
-                    public void run() {
-                        sendSelfDisguise((Player) disguise.getEntity(), disguise);
-                    }
-                }.runTaskLater(LibsDisguises.getInstance(), 2);
+                Schedulers.runAtEntityLater(disguise.getEntity(),
+                    () -> sendSelfDisguise((Player) disguise.getEntity(), disguise), 2);
             }
 
             final Object entityTracker = ReflectionManager.getEntityTracker(disguise.getEntity());
@@ -2434,12 +2399,8 @@ public class DisguiseUtilities {
                     WrapperPlayServerDestroyEntities destroyPacket = getDestroyPacket(disguise.getEntity().getEntityId());
                     PacketEvents.getAPI().getPlayerManager().sendPacket(player, destroyPacket);
 
-                    new BukkitRunnable() {
-                        @Override
-                        public void run() {
-                            ReflectionManager.addEntityTracker(entityTracker, entityTrackerEntry, p);
-                        }
-                    }.runTaskLater(LibsDisguises.getInstance(), 2);
+                    Schedulers.runAtEntityLater(disguise.getEntity(),
+                        () -> ReflectionManager.addEntityTracker(entityTracker, entityTrackerEntry, p), 2);
                 }
             }
         } catch (Exception ex) {
@@ -3075,16 +3036,13 @@ public class DisguiseUtilities {
                 // If it is, then this method will be run again in one tick. Which is when it should be constructed.
                 // Else its going to run in a infinite loop hue hue hue..
                 // At least until this disguise is discarded
-                new BukkitRunnable() {
-                    @Override
-                    public void run() {
-                        if (DisguiseAPI.getDisguise(player, player) != disguise) {
-                            return;
-                        }
-
-                        sendSelfDisguise(player, disguise);
+                Schedulers.runAtEntityLater(player, () -> {
+                    if (DisguiseAPI.getDisguise(player, player) != disguise) {
+                        return;
                     }
-                }.runTaskLater(LibsDisguises.getInstance(), 1);
+
+                    sendSelfDisguise(player, disguise);
+                }, 1);
 
                 return;
             }
@@ -4095,23 +4053,20 @@ public class DisguiseUtilities {
     }
 
     private static void findFutureDisguise(Player observer, int entityId) {
-        if (Bukkit.isPrimaryThread()) {
+        if (LibsDisguises.getFoliaLib().getScheduler().isOwnedByCurrentRegion(observer)) {
             findEntities(observer, entityId);
             return;
         }
 
         CountDownLatch latch = new CountDownLatch(1);
 
-        new BukkitRunnable() {
-            @Override
-            public void run() {
-                try {
-                    findEntities(observer, entityId);
-                } finally {
-                    latch.countDown();
-                }
+        Schedulers.runAtEntity(observer, () -> {
+            try {
+                findEntities(observer, entityId);
+            } finally {
+                latch.countDown();
             }
-        }.runTask(LibsDisguises.getInstance());
+        });
 
         try {
             boolean mainThreadSuccess = latch.await(5, TimeUnit.SECONDS);
