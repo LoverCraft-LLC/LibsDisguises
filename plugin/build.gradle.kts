@@ -25,6 +25,7 @@ dependencies {
     compileOnly(libs.me.frep.vulcan)
     compileOnly(libs.it.unimi.dsi.fastutil)
     compileOnly(libs.placeholder.api)
+    compileOnly(libs.com.tcoded.folialib)
 }
 
 buildscript {

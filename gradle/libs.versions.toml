@@ -50,6 +50,7 @@ org-json = { module = "org.json:json", version.ref = "json-version" }
 org-ow2-asm = { module = "org.ow2.asm:asm", version.ref = "asm-version" }
 com-guardsquare-proguard = { module = "com.guardsquare:proguard-gradle", version.ref = "proguard-version" }
 me-frep-vulcan = { module = "me.frep.vulcan:vulcan-api", version.ref = "vulcan-version" }
+com-tcoded-folialib = { module = "com.tcoded:FoliaLib", version = "0.5.1" }
 
 [plugins]
 shadowjar = { id = "com.gradleup.shadow", version.ref = "shadowjar-version" }

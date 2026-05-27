@@ -23,6 +23,7 @@ tasks {
         configurations = listOf(project.configurations.shadow.get())
         exclude("me/libraryaddict/disguise/utilities/compiler/**")
         exclude("META-INF/**")
+        relocate("com.tcoded.folialib", "me.libraryaddict.disguise.libs.folialib")
     }
 
     register<JavaExec>("compileShadedFiles") {
@@ -135,6 +136,7 @@ dependencies {
     shadow(project(":plugin")) {
         exclude("*")
     }
+    shadow(libs.com.tcoded.folialib)
     runtimeOnly(project(":plugin"))
     runtimeOnly(libs.com.retro.packetevents)
 

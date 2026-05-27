@@ -30,6 +30,10 @@ subprojects {
         maven {
             url = uri("https://repo.extendedclip.com/content/repositories/placeholderapi/")
         }
+
+        maven {
+            url = uri("https://repo.tcoded.com/releases")
+        }
     }
 
     apply(plugin = "java-library")

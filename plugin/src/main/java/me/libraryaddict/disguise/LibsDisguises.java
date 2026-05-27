@@ -1,5 +1,6 @@
 package me.libraryaddict.disguise;
 
+import com.tcoded.folialib.FoliaLib;
 import io.github.retrooper.packetevents.util.SpigotReflectionUtil;
 import lombok.Getter;
 import lombok.Setter;
@@ -86,6 +87,8 @@ public class LibsDisguises extends JavaPlugin {
      */
     @Getter
     private static LibsDisguises instance;
+    @Getter
+    private static FoliaLib foliaLib;
     @Getter
     private DisguiseListener listener;
     private String buildNumber;
@@ -250,6 +253,8 @@ public class LibsDisguises extends JavaPlugin {
             if (isReloaded()) {
                 getLogger().severe("Server was reloaded! Please do not report any bugs! This plugin can't handle reloads gracefully!");
             }
+
+            foliaLib = new FoliaLib(this);
 
             verboseLog("Checking for terrible Minecraft versions (Shouldn't be used)...");
             runWarnings();
