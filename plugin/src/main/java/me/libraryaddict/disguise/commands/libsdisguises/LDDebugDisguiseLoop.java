@@ -8,7 +8,8 @@ import me.libraryaddict.disguise.utilities.translations.LibsMsg;
 import org.bukkit.ChatColor;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
-import org.bukkit.scheduler.BukkitRunnable;
+import com.tcoded.folialib.wrapper.task.WrappedTask;
+import me.libraryaddict.disguise.utilities.scheduler.Schedulers;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.ArrayList;
@@ -52,38 +53,36 @@ public class LDDebugDisguiseLoop implements LDCommand {
         }
 
         Iterator<String> iterator = getDisguisesToRun().iterator();
+        WrappedTask[] taskRef = new WrappedTask[1];
 
-        new BukkitRunnable() {
-            @Override
-            public void run() {
-                if (!((Player) sender).isOnline()) {
-                    cancel();
-                    return;
+        taskRef[0] = Schedulers.runAtEntityTimer((Player) sender, () -> {
+            if (!((Player) sender).isOnline()) {
+                taskRef[0].cancel();
+                return;
+            }
+
+            String command = iterator.next();
+            String message = ChatColor.AQUA + "Now disguising " + sender.getName() + " as " + command;
+            sender.sendMessage(message);
+            LibsDisguises.getInstance().getLogger().info(message);
+
+            Disguise disguise = DisguiseAPI.getDisguise((Player) sender);
+
+            try {
+                ((Player) sender).performCommand("disguise " + command);
+
+                if (disguise == DisguiseAPI.getDisguise((Player) sender)) {
+                    LibsDisguises.getInstance().getLogger().info("Looks like '" + command + "' failed.");
                 }
-
-                String command = iterator.next();
-                String message = ChatColor.AQUA + "Now disguising " + sender.getName() + " as " + command;
-                sender.sendMessage(message);
-                LibsDisguises.getInstance().getLogger().info(message);
-
-                Disguise disguise = DisguiseAPI.getDisguise((Player) sender);
-
-                try {
-                    ((Player) sender).performCommand("disguise " + command);
-
-                    if (disguise == DisguiseAPI.getDisguise((Player) sender)) {
-                        LibsDisguises.getInstance().getLogger().info("Looks like '" + command + "' failed.");
-                    }
-                } catch (Exception ex) {
-                    ex.printStackTrace();
-                } finally {
-                    if (!iterator.hasNext()) {
-                        cancel();
-                        sender.sendMessage(ChatColor.AQUA + "Command Complete!");
-                    }
+            } catch (Exception ex) {
+                ex.printStackTrace();
+            } finally {
+                if (!iterator.hasNext()) {
+                    taskRef[0].cancel();
+                    sender.sendMessage(ChatColor.AQUA + "Command Complete!");
                 }
             }
-        }.runTaskTimer(LibsDisguises.getInstance(), 5, 5);
+        }, 5, 5);
     }
 
     @NotNull
