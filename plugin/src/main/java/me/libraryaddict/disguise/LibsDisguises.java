@@ -65,7 +65,7 @@ import org.bukkit.command.TabCompleter;
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.plugin.Plugin;
 import org.bukkit.plugin.java.JavaPlugin;
-import org.bukkit.scheduler.BukkitRunnable;
+import me.libraryaddict.disguise.utilities.scheduler.Schedulers;
 import org.jetbrains.annotations.NotNull;
 
 import java.io.File;
@@ -506,9 +506,9 @@ public class LibsDisguises extends JavaPlugin {
             Plugin plugin = Bukkit.getPluginManager().getPlugin("packetevents");
             String version = plugin == null ? "[PacketEvents Plugin Missing]" : plugin.getDescription().getVersion();
 
-            BukkitRunnable runnable = createPacketEventsOutdatedRunnable(version, requiredPacketEvents);
+            Runnable runnable = createPacketEventsOutdatedRunnable(version, requiredPacketEvents);
             runnable.run();
-            runnable.runTaskLater(this, 20);
+            Schedulers.runSyncLater(runnable, 20);
         }
 
         PacketEventsUpdater.doShadedWarning();
@@ -563,34 +563,29 @@ public class LibsDisguises extends JavaPlugin {
     }
 
     @NotNull
-    private BukkitRunnable createPacketEventsOutdatedRunnable(String version, String requiredPacketEvents) {
-        return new BukkitRunnable() {
-            private int timesRun;
+    private Runnable createPacketEventsOutdatedRunnable(String version, String requiredPacketEvents) {
+        return () -> {
+            if (isPacketEventsUpdateDownloaded()) {
+                getLogger().warning(
+                    "An update for PacketEvents has been downloaded and will be installed when the server restarts. When possible, " +
+                        "please restart the server. Lib's Disguises may not work correctly until you do so.");
+            } else {
+                getLogger().warning(
+                    "Update your PacketEvents! You are running " + version + " but the minimum version you should be on is " +
+                        requiredPacketEvents + "!");
+                getLogger().warning("Release Builds: https://modrinth.com/plugin/packetevents");
 
-            @Override
-            public void run() {
-                if (isPacketEventsUpdateDownloaded()) {
+                if (requiredPacketEvents.contains("SNAPSHOT")) {
                     getLogger().warning(
-                        "An update for PacketEvents has been downloaded and will be installed when the server restarts. When possible, " +
-                            "please restart the server. Lib's Disguises may not work correctly until you do so.");
-                } else {
-                    getLogger().warning(
-                        "Update your PacketEvents! You are running " + version + " but the minimum version you should be on is " +
-                            requiredPacketEvents + "!");
-                    getLogger().warning("Release Builds: https://modrinth.com/plugin/packetevents");
-
-                    if (requiredPacketEvents.contains("SNAPSHOT")) {
-                        getLogger().warning(
-                            "Minimum version is a SNAPSHOT build, it's possible that the features/bugfixes has not made it into the " +
-                                "releases yet. As such, you may need to use the dev builds instead. Using `/ld packetevents` will handle " +
-                                "it for you.");
-                        getLogger().warning("Snapshot Builds: https://ci.codemc.io/job/retrooper/job/packetevents/");
-                    }
-
-                    getLogger().warning(
-                        "Or! Use /ld packetevents - To have Lib's Disguises download the latest release (Or snapshot if release is " +
-                            "behind)");
+                        "Minimum version is a SNAPSHOT build, it's possible that the features/bugfixes has not made it into the " +
+                            "releases yet. As such, you may need to use the dev builds instead. Using `/ld packetevents` will handle " +
+                            "it for you.");
+                    getLogger().warning("Snapshot Builds: https://ci.codemc.io/job/retrooper/job/packetevents/");
                 }
+
+                getLogger().warning(
+                    "Or! Use /ld packetevents - To have Lib's Disguises download the latest release (Or snapshot if release is " +
+                        "behind)");
             }
         };
     }
