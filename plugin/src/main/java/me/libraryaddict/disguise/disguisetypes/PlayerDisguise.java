@@ -19,7 +19,7 @@ import org.bukkit.Bukkit;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Entity;
 import org.bukkit.entity.Player;
-import org.bukkit.scheduler.BukkitRunnable;
+import me.libraryaddict.disguise.utilities.scheduler.Schedulers;
 import org.jetbrains.annotations.ApiStatus;
 import org.jetbrains.annotations.Nullable;
 
@@ -691,12 +691,7 @@ public class PlayerDisguise extends TargetedDisguise {
 
         if (hasScoreboardName()) {
             if (disguiseBeingReplaced) {
-                new BukkitRunnable() {
-                    @Override
-                    public void run() {
-                        DisguiseUtilities.unregisterExtendedName(PlayerDisguise.this);
-                    }
-                }.runTaskLater(LibsDisguises.getInstance(), 5);
+                Schedulers.runSyncLater(() -> DisguiseUtilities.unregisterExtendedName(PlayerDisguise.this), 5);
             } else {
                 DisguiseUtilities.unregisterExtendedName(this);
             }
