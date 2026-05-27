@@ -18,8 +18,8 @@ import org.bukkit.command.Command;
 import org.bukkit.command.CommandExecutor;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
-import org.bukkit.scheduler.BukkitRunnable;
-import org.bukkit.scheduler.BukkitTask;
+import com.tcoded.folialib.wrapper.task.WrappedTask;
+import me.libraryaddict.disguise.utilities.scheduler.Schedulers;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -94,24 +94,25 @@ public class GrabSkinCommand implements CommandExecutor {
 
         SkinUtils.SkinCallback callback = new SkinUtils.SkinCallback() {
             private final long cancelAt = System.currentTimeMillis() + TimeUnit.MINUTES.toMillis(3);
-            private final BukkitTask runnable = new BukkitRunnable() {
-                @Override
-                public void run() {
+            private WrappedTask runnable;
+
+            {
+                runnable = Schedulers.runSyncTimer(() -> {
                     if (System.currentTimeMillis() > cancelAt) {
-                        cancel();
+                        Schedulers.cancel(runnable);
                         LibsMsg.SKIN_API_TIMEOUT.send(sender);
                         return;
                     }
 
                     LibsMsg.PLEASE_WAIT.send(sender);
-                }
-            }.runTaskTimer(LibsDisguises.getInstance(), 100, 100);
+                }, 100, 100);
+            }
 
             @Override
             public void onError(LibsMsg msg, Object... args) {
                 msg.send(sender, args);
 
-                runnable.cancel();
+                Schedulers.cancel(runnable);
             }
 
             @Override
@@ -121,7 +122,7 @@ public class GrabSkinCommand implements CommandExecutor {
 
             @Override
             public void onSuccess(UserProfile profile) {
-                runnable.cancel();
+                Schedulers.cancel(runnable);
                 DisguiseUtilities.doSkinUUIDWarning(sender);
 
                 String nName = name;
