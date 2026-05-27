@@ -1444,6 +1444,7 @@ public class ReflectionManager {
 
     public static void validateEntityMetadata() {
         int maxErrorsThrown = 5;
+        boolean isFolia = LibsDisguises.getFoliaLib() != null && LibsDisguises.getFoliaLib().isFolia();
 
         for (DisguiseType disguiseType : DisguiseType.values()) {
             try {
@@ -1454,6 +1455,18 @@ public class ReflectionManager {
 
                 createNMSValues(disguiseType);
             } catch (Throwable throwable) {
+                // On Folia, projectile-like entities can't be created without a world during boot
+                // (Projectile.setPos reads currWorldData/regionData which is null). Skip these silently —
+                // the disguise still works once the player uses it; only the cached metadata is lost.
+                boolean isFoliaProjectileInit = isFolia && throwable instanceof NullPointerException &&
+                    String.valueOf(throwable.getMessage()).contains("currWorldData");
+
+                if (isFoliaProjectileInit) {
+                    LibsDisguises.getInstance().getLogger().info(
+                        "Skipping metadata cache for " + disguiseType.name() + " on Folia (projectile boot-time init unsupported)");
+                    continue;
+                }
+
                 LibsDisguises.getInstance().getLogger()
                     .severe("Uh oh! Trouble while making values for the disguise " + disguiseType.name() + "!");
                 LibsDisguises.getInstance().getLogger().severe("Before reporting this error, " +
