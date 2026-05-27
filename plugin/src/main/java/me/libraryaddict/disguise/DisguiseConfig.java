@@ -31,8 +31,8 @@ import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.entity.Entity;
 import org.bukkit.permissions.Permission;
 import org.bukkit.permissions.PermissionDefault;
-import org.bukkit.scheduler.BukkitRunnable;
-import org.bukkit.scheduler.BukkitTask;
+import com.tcoded.folialib.wrapper.task.WrappedTask;
+import me.libraryaddict.disguise.utilities.scheduler.Schedulers;
 
 import java.io.File;
 import java.io.FileNotFoundException;
@@ -233,7 +233,7 @@ public class DisguiseConfig {
     private static Boolean autoUpdate;
     @Getter
     private static boolean notifyUpdate;
-    private static BukkitTask updaterTask;
+    private static WrappedTask updaterTask;
     @Getter
     @Setter
     private static TallSelfDisguise tallSelfDisguisesVisibility;
@@ -433,12 +433,8 @@ public class DisguiseConfig {
         // Next update check will be in 30 minutes, or the timer - elapsed time. Whatever is greater
         timeSinceLast = Math.max(30 * 60 * 20, timer - timeSinceLast);
 
-        updaterTask = new BukkitRunnable() {
-            @Override
-            public void run() {
-                LibsDisguises.getInstance().getUpdateChecker().doAutoUpdateCheck();
-            }
-        }.runTaskTimerAsynchronously(LibsDisguises.getInstance(), timeSinceLast, timer);
+        updaterTask = Schedulers.runAsyncTimer(
+            () -> LibsDisguises.getInstance().getUpdateChecker().doAutoUpdateCheck(), timeSinceLast, timer);
     }
 
     public static void setUsingReleaseBuilds(boolean useReleaseBuilds) {
