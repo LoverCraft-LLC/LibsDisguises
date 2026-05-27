@@ -35,7 +35,7 @@ import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
 import org.bukkit.event.player.PlayerMoveEvent;
-import org.bukkit.scheduler.BukkitRunnable;
+import me.libraryaddict.disguise.utilities.scheduler.Schedulers;
 
 import java.lang.ref.WeakReference;
 import java.util.ArrayList;
@@ -92,12 +92,7 @@ public class PlayerSkinHandler implements Listener {
     private final boolean[] conflictingTypes = PacketsManager.getPacketsManager().createConflicting(true);
 
     public PlayerSkinHandler() {
-        new BukkitRunnable() {
-            @Override
-            public void run() {
-                getCache().asMap().forEach((key, value) -> doTeleport(key, value));
-            }
-        }.runTaskTimer(LibsDisguises.getInstance(), 1, 1);
+        Schedulers.runSyncTimer(() -> getCache().asMap().forEach((key, value) -> doTeleport(key, value)), 1, 1);
     }
 
     public synchronized boolean isSleeping(Player player, PlayerDisguise disguise) {
@@ -324,36 +319,28 @@ public class PlayerSkinHandler implements Listener {
                         PacketEvents.getAPI().getPlayerManager().sendPacketSilently(player, packet);
                     }
                 } else {
-                    new BukkitRunnable() {
-                        @Override
-                        public void run() {
-                            if (!disguise.isDisguiseInUse()) {
-                                return;
-                            }
-
-                            boolean avoidSending = disguise.getInternals().shouldAvoidSendingPackets(player);
-
-                            for (PacketWrapper packet : entry.getValue()) {
-                                if (avoidSending && conflictingTypes[((Enum) packet.getPacketTypeData().getPacketType()).ordinal()]) {
-                                    continue;
-                                }
-
-                                PacketEvents.getAPI().getPlayerManager().sendPacketSilently(player, packet);
-                            }
+                    Schedulers.runAtEntityLater(player, () -> {
+                        if (!disguise.isDisguiseInUse()) {
+                            return;
                         }
-                    }.runTaskLater(LibsDisguises.getInstance(), entry.getKey());
+
+                        boolean avoidSending = disguise.getInternals().shouldAvoidSendingPackets(player);
+
+                        for (PacketWrapper packet : entry.getValue()) {
+                            if (avoidSending && conflictingTypes[((Enum) packet.getPacketTypeData().getPacketType()).ordinal()]) {
+                                continue;
+                            }
+
+                            PacketEvents.getAPI().getPlayerManager().sendPacketSilently(player, packet);
+                        }
+                    }, entry.getKey());
                 }
             }
 
             if (skin.isSleepPackets()) {
                 addTeleport(player, skin);
 
-                new BukkitRunnable() {
-                    @Override
-                    public void run() {
-                        addMetadata(player, skin);
-                    }
-                }.runTask(LibsDisguises.getInstance());
+                Schedulers.runAtEntity(player, () -> addMetadata(player, skin));
             }
 
             if (disguise.getInternals().getNameDisplayType().isFakeEntity() && disguise.isNameVisible() &&
