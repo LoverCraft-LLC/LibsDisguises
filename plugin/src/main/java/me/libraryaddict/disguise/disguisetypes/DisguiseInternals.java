@@ -22,7 +22,7 @@ import org.bukkit.entity.Entity;
 import org.bukkit.entity.LivingEntity;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.EquipmentSlotGroup;
-import org.bukkit.scheduler.BukkitRunnable;
+import me.libraryaddict.disguise.utilities.scheduler.Schedulers;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -189,17 +189,20 @@ public class DisguiseInternals<D extends Disguise> implements DisguiseScaling.Di
             return;
         }
 
-        new BukkitRunnable() {
-            @Override
-            public void run() {
-                if (!disguise.isDisguiseInUse()) {
-                    return;
-                }
-
-                getScaling().adjustScaling();
-                refreshingScaling.set(false);
+        Runnable refresh = () -> {
+            if (!disguise.isDisguiseInUse()) {
+                return;
             }
-        }.runTask(LibsDisguises.getInstance());
+
+            getScaling().adjustScaling();
+            refreshingScaling.set(false);
+        };
+
+        if (disguise.getEntity() != null) {
+            Schedulers.runAtEntity(disguise.getEntity(), refresh);
+        } else {
+            Schedulers.runSync(refresh);
+        }
     }
 
     protected double getActualEntityScale() {
