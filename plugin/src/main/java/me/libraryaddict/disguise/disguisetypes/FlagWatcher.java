@@ -41,7 +41,7 @@ import org.bukkit.entity.Player;
 import org.bukkit.inventory.EntityEquipment;
 import org.bukkit.inventory.EquipmentSlot;
 import org.bukkit.inventory.ItemStack;
-import org.bukkit.scheduler.BukkitRunnable;
+import me.libraryaddict.disguise.utilities.scheduler.Schedulers;
 import org.jetbrains.annotations.ApiStatus;
 
 import java.util.ArrayList;
@@ -427,12 +427,8 @@ public class FlagWatcher {
                         if (newHealth > 0 && hasDied) {
                             hasDied = false;
 
-                            new BukkitRunnable() {
-                                @Override
-                                public void run() {
-                                    DisguiseUtilities.sendSelfDisguise((Player) getDisguise().getEntity(), getDisguise());
-                                }
-                            }.runTaskLater(LibsDisguises.getInstance(), 2);
+                            Schedulers.runAtEntityLater(getDisguise().getEntity(),
+                                () -> DisguiseUtilities.sendSelfDisguise((Player) getDisguise().getEntity(), getDisguise()), 2);
                         } else if (newHealth <= 0 && !hasDied) {
                             hasDied = true;
                         }
@@ -496,13 +492,8 @@ public class FlagWatcher {
             return;
         }
 
-        if (!Bukkit.isPrimaryThread()) {
-            new BukkitRunnable() {
-                @Override
-                public void run() {
-                    updateNameHeight();
-                }
-            }.runTask(LibsDisguises.getInstance());
+        if (getDisguise().getEntity() != null && !LibsDisguises.getFoliaLib().getScheduler().isOwnedByCurrentRegion(getDisguise().getEntity())) {
+            Schedulers.runAtEntity(getDisguise().getEntity(), this::updateNameHeight);
             return;
         }
 
