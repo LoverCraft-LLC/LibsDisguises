@@ -12,7 +12,7 @@ import net.md_5.bungee.api.chat.ComponentBuilder;
 import org.bukkit.ChatColor;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
-import org.bukkit.scheduler.BukkitRunnable;
+import me.libraryaddict.disguise.utilities.scheduler.Schedulers;
 
 import java.io.BufferedReader;
 import java.io.DataOutputStream;
@@ -187,59 +187,53 @@ public class LDUploadLogs implements LDCommand {
 
             sender.sendMessage(ChatColor.GOLD + "Now creating mclo.gs links...");
 
-            new BukkitRunnable() {
-                @Override
-                public void run() {
-                    try {
-                        String disguiseText = disguises.exists() ? new String(Files.readAllBytes(disguises.toPath())) : null;
+            Schedulers.runAsync(() -> {
+                try {
+                    String disguiseText = disguises.exists() ? new String(Files.readAllBytes(disguises.toPath())) : null;
 
-                        configText.append("\n\n================\n");
+                    configText.append("\n\n================\n");
 
-                        ArrayList<String> modified = DisguiseConfig.doOutput(true, true);
+                    ArrayList<String> modified = DisguiseConfig.doOutput(true, true);
 
-                        for (String s : modified) {
-                            configText.append("\n").append(s);
-                        }
-
-                        if (modified.isEmpty()) {
-                            configText.append("\nUsing default config!");
-                        }
-
-                        URL latestPaste = new GuestPaste("latest.log", latestText).paste();
-                        URL configPaste = new GuestPaste("LibsDisguises config.yml", configText.toString()).paste();
-                        URL disguisesPaste =
-                            disguiseText != null ? new GuestPaste("LibsDisguises disguises.yml", disguiseText).paste() : null;
-
-                        lastUsed = System.currentTimeMillis();
-
-                        new BukkitRunnable() {
-                            @Override
-                            public void run() {
-                                sender.sendMessage(ChatColor.GOLD + "Upload successful!");
-
-                                // Console can't click :(
-                                if (sender instanceof Player) {
-                                    sender.sendMessage(ChatColor.GOLD + "Click on the below message to have it appear in your chat input");
-                                }
-
-                                String text = "My log file: " + latestPaste + ", my combined config files: " + configPaste +
-                                    " and my disguises file: " +
-                                    (disguisesPaste != null ? disguisesPaste : "disguises.yml doesn't exist..");
-
-                                ComponentBuilder builder = new ComponentBuilder("");
-                                builder.append(text);
-                                builder.color(net.md_5.bungee.api.ChatColor.AQUA);
-                                builder.event(new ClickEvent(ClickEvent.Action.SUGGEST_COMMAND, text));
-
-                                sender.spigot().sendMessage(builder.create());
-                            }
-                        }.runTask(LibsDisguises.getInstance());
-                    } catch (Exception e) {
-                        e.printStackTrace();
-                        sender.sendMessage(ChatColor.RED + "Unexpected error! Upload failed! " + e.getMessage());
+                    for (String s : modified) {
+                        configText.append("\n").append(s);
                     }
+
+                    if (modified.isEmpty()) {
+                        configText.append("\nUsing default config!");
+                    }
+
+                    URL latestPaste = new GuestPaste("latest.log", latestText).paste();
+                    URL configPaste = new GuestPaste("LibsDisguises config.yml", configText.toString()).paste();
+                    URL disguisesPaste =
+                        disguiseText != null ? new GuestPaste("LibsDisguises disguises.yml", disguiseText).paste() : null;
+
+                    lastUsed = System.currentTimeMillis();
+
+                    Schedulers.runSync(() -> {
+                        sender.sendMessage(ChatColor.GOLD + "Upload successful!");
+
+                        // Console can't click :(
+                        if (sender instanceof Player) {
+                            sender.sendMessage(ChatColor.GOLD + "Click on the below message to have it appear in your chat input");
+                        }
+
+                        String text = "My log file: " + latestPaste + ", my combined config files: " + configPaste +
+                            " and my disguises file: " +
+                            (disguisesPaste != null ? disguisesPaste : "disguises.yml doesn't exist..");
+
+                        ComponentBuilder builder = new ComponentBuilder("");
+                        builder.append(text);
+                        builder.color(net.md_5.bungee.api.ChatColor.AQUA);
+                        builder.event(new ClickEvent(ClickEvent.Action.SUGGEST_COMMAND, text));
+
+                        sender.spigot().sendMessage(builder.create());
+                    });
+                } catch (Exception e) {
+                    e.printStackTrace();
+                    sender.sendMessage(ChatColor.RED + "Unexpected error! Upload failed! " + e.getMessage());
                 }
-            }.runTaskAsynchronously(LibsDisguises.getInstance());
+            });
         } catch (IOException e) {
             e.printStackTrace();
         }
