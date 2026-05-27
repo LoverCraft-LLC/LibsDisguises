@@ -24,7 +24,7 @@ import org.bukkit.GameMode;
 import org.bukkit.Material;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
-import org.bukkit.scheduler.BukkitRunnable;
+import me.libraryaddict.disguise.utilities.scheduler.Schedulers;
 
 import java.util.List;
 
@@ -45,18 +45,13 @@ public class PacketListenerInventory extends SimplePacketListenerAbstract {
                 return;
             }
 
-            if (!Bukkit.isPrimaryThread()) {
+            final Player player = event.getPlayer();
+
+            if (!LibsDisguises.getFoliaLib().getScheduler().isOwnedByCurrentRegion(player)) {
                 PacketPlayReceiveEvent cloned = event.clone();
-                new BukkitRunnable() {
-                    @Override
-                    public void run() {
-                        onPacketPlayReceive(cloned);
-                    }
-                }.runTask(LibsDisguises.getInstance());
+                Schedulers.runAtEntity(player, () -> onPacketPlayReceive(cloned));
                 return;
             }
-
-            final Player player = event.getPlayer();
 
             if (player.getVehicle() != null) {
                 return;
@@ -130,12 +125,7 @@ public class PacketListenerInventory extends SimplePacketListenerAbstract {
                     if (clickedItem != null && !clickedItem.isEmpty()) {
                         // Rather than predict the clients actions
                         // Lets just update the entire inventory..
-                        new BukkitRunnable() {
-                            @Override
-                            public void run() {
-                                player.updateInventory();
-                            }
-                        }.runTask(LibsDisguises.getInstance());
+                        Schedulers.runAtEntity(player, player::updateInventory);
                     }
 
                     return;
