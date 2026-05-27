@@ -12,6 +12,7 @@ softdepend:
   - PlaceholderAPI
   - Vulcan
 api-version: '1.13'
+folia-supported: true
 file-count: 0
 commands:
   libsdisguises:
