@@ -14,7 +14,7 @@ import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
 import org.bukkit.event.player.PlayerToggleSneakEvent;
-import org.bukkit.scheduler.BukkitRunnable;
+import me.libraryaddict.disguise.utilities.scheduler.Schedulers;
 
 import java.util.Random;
 
@@ -80,23 +80,20 @@ public class PaperDisguiseListener implements Listener {
         Random r = new Random();
         Player p = event.getPlayer();
 
-        new BukkitRunnable() {
-            @Override
-            public void run() {
-                count--;
+        Schedulers.runAtEntityLater(p, () -> {
+            count--;
 
-                if (!p.isOnline()) {
-                    return;
-                }
-
-                if (r.nextDouble() < 0.1) {
-                    p.sendMessage("§c" + '?');
-                } else {
-                    Location l = p.getLocation();
-                    l.setDirection(l.getDirection().multiply(-1).setY((r.nextDouble() * 2) - 1));
-                    p.teleport(l);
-                }
+            if (!p.isOnline()) {
+                return;
             }
-        }.runTaskLater(LibsDisguises.getInstance(), r.nextInt(120));
+
+            if (r.nextDouble() < 0.1) {
+                p.sendMessage("§c" + '?');
+            } else {
+                Location l = p.getLocation();
+                l.setDirection(l.getDirection().multiply(-1).setY((r.nextDouble() * 2) - 1));
+                p.teleport(l);
+            }
+        }, r.nextInt(120));
     }
 }
