@@ -8,7 +8,7 @@ import me.libraryaddict.disguise.utilities.translations.LibsMsg;
 import me.libraryaddict.disguise.utilities.updates.UpdateChecker;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
-import org.bukkit.scheduler.BukkitRunnable;
+import me.libraryaddict.disguise.utilities.scheduler.Schedulers;
 
 import java.util.Arrays;
 import java.util.List;
@@ -65,44 +65,41 @@ public class LDUpdate implements LDCommand {
             DisguiseConfig.setUsingReleaseBuilds(releaseBuilds);
         }
 
-        new BukkitRunnable() {
-            @Override
-            public void run() {
-                LibsMsg updateResult = checker.doUpdateCheck();
+        Schedulers.runAsync(() -> {
+            LibsMsg updateResult = checker.doUpdateCheck();
 
-                if (checker.getUpdate() == null) {
-                    LibsMsg.UPDATE_FAILED.send(sender);
-                    return;
+            if (checker.getUpdate() == null) {
+                LibsMsg.UPDATE_FAILED.send(sender);
+                return;
+            }
+
+            if (checker.isOnLatestUpdate(true)) {
+                if (checker.getLastDownload() != null) {
+                    LibsMsg.UPDATE_ALREADY_DOWNLOADED.send(sender);
+                } else {
+                    LibsMsg.UPDATE_ON_LATEST.send(sender);
                 }
 
-                if (checker.isOnLatestUpdate(true)) {
-                    if (checker.getLastDownload() != null) {
-                        LibsMsg.UPDATE_ALREADY_DOWNLOADED.send(sender);
-                    } else {
-                        LibsMsg.UPDATE_ON_LATEST.send(sender);
-                    }
+                return;
+            }
 
-                    return;
-                }
+            LibsDisgInfo result = checker.doUpdate();
 
-                LibsDisgInfo result = checker.doUpdate();
+            if (result == null) {
+                LibsMsg.UPDATE_FAILED.send(sender);
+                return;
+            }
 
-                if (result == null) {
-                    LibsMsg.UPDATE_FAILED.send(sender);
-                    return;
-                }
+            for (String msg : checker.getUpdateMessage()) {
+                DisguiseUtilities.sendMessage(sender, msg);
+            }
 
+            if (sender instanceof Player) {
                 for (String msg : checker.getUpdateMessage()) {
-                    DisguiseUtilities.sendMessage(sender, msg);
-                }
-
-                if (sender instanceof Player) {
-                    for (String msg : checker.getUpdateMessage()) {
-                        LibsDisguises.getInstance().getLogger().info(msg);
-                    }
+                    LibsDisguises.getInstance().getLogger().info(msg);
                 }
             }
-        }.runTaskAsynchronously(LibsDisguises.getInstance());
+        });
     }
 
     @Override
