@@ -10,7 +10,7 @@ import me.libraryaddict.disguise.LibsDisguises;
 import me.libraryaddict.disguise.disguisetypes.Disguise;
 import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
-import org.bukkit.scheduler.BukkitRunnable;
+import me.libraryaddict.disguise.utilities.scheduler.Schedulers;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.ArrayList;
@@ -58,29 +58,26 @@ public class LibsPackets<T extends PacketWrapper<@NotNull T>> {
 
     public void sendDelayed(final Player observer) {
         for (Map.Entry<Integer, List<PacketWrapper>> entry : getDelayedPacketsMap().entrySet()) {
-            new BukkitRunnable() {
-                @Override
-                public void run() {
-                    if (!getDisguise().isDisguiseInUse()) {
-                        List<PacketWrapper> packets = entry.getValue();
+            Schedulers.runAtEntityLater(observer, () -> {
+                if (!getDisguise().isDisguiseInUse()) {
+                    List<PacketWrapper> packets = entry.getValue();
 
-                        if (packets.stream().noneMatch(p -> p.getPacketTypeData().getPacketType() == PacketType.Play.Server.PLAYER_INFO)) {
-                            return;
-                        }
-
-                        packets.removeIf(p -> p.getPacketTypeData().getPacketType() != PacketType.Play.Server.PLAYER_INFO);
+                    if (packets.stream().noneMatch(p -> p.getPacketTypeData().getPacketType() == PacketType.Play.Server.PLAYER_INFO)) {
+                        return;
                     }
 
-                    for (PacketWrapper packet : entry.getValue()) {
-                        // To have right click handled properly, equip packets sent are normal
-                        if (packet.getPacketTypeData().getPacketType() == PacketType.Play.Server.ENTITY_EQUIPMENT) {
-                            PacketEvents.getAPI().getPlayerManager().sendPacketSilently(observer, packet);
-                        } else {
-                            PacketEvents.getAPI().getPlayerManager().sendPacket(observer, packet);
-                        }
+                    packets.removeIf(p -> p.getPacketTypeData().getPacketType() != PacketType.Play.Server.PLAYER_INFO);
+                }
+
+                for (PacketWrapper packet : entry.getValue()) {
+                    // To have right click handled properly, equip packets sent are normal
+                    if (packet.getPacketTypeData().getPacketType() == PacketType.Play.Server.ENTITY_EQUIPMENT) {
+                        PacketEvents.getAPI().getPlayerManager().sendPacketSilently(observer, packet);
+                    } else {
+                        PacketEvents.getAPI().getPlayerManager().sendPacket(observer, packet);
                     }
                 }
-            }.runTaskLater(LibsDisguises.getInstance(), entry.getKey());
+            }, entry.getKey());
         }
     }
 }
