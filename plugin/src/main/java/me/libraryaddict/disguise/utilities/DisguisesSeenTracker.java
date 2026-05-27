@@ -2,7 +2,7 @@ package me.libraryaddict.disguise.utilities;
 
 import lombok.RequiredArgsConstructor;
 import me.libraryaddict.disguise.LibsDisguises;
-import org.bukkit.scheduler.BukkitRunnable;
+import me.libraryaddict.disguise.utilities.scheduler.Schedulers;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.Map;
@@ -86,11 +86,6 @@ public class DisguisesSeenTracker {
     }
 
     public void startTimer() {
-        new BukkitRunnable() {
-            @Override
-            public void run() {
-                expireTransitQueue();
-            }
-        }.runTaskTimer(LibsDisguises.getInstance(), 20, 20);
+        Schedulers.runSyncTimer(this::expireTransitQueue, 20, 20);
     }
 }
